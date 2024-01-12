@@ -29,12 +29,15 @@ import torch.nn.functional as F
 #        x = self.fc3(x)
 #        return x
 
+classes = ('normal', 'p_v', 'p_b')
+
 if __name__ == '__main__':
   
-  net = nn.Module()
+  net = nn.Module()  #base class for neural networks
   
   #define criterion (loss) and optimizer
   criterion = nn.CrossEntropyLoss()
   optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
   
   #training loop
+for
