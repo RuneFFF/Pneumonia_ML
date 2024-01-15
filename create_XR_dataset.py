@@ -1,7 +1,7 @@
 import torch
-from torchvision import datasets
-from torch.utils.data import Dataset, DataLoader
+import torchvision
 from torchvision import datasets, models, transforms
+from torch.utils.data import Dataset, DataLoader
 import os
 import numpy as np
 import pandas as pd
@@ -12,46 +12,72 @@ import cv2
 # from skimage.transform import resize
 # import keras
 
-
-
 class XRaySet(Dataset):
-    def __int__(self, root_dir, is_train):
+    def __init__(self, dataframe, root_dir, is_train):
+        self.dataframe = dataframe
         self.root_dir = root_dir
         self.is_train = is_train
 
     def __len__(self):
           return len(self.dataframe)
 
-    def __getitem__(self, type, person, indx):
+    def __getitem__(self, indx):
 
         if torch.is_tensor(indx):
             indx = indx.tolist()
 
-        if type == 'n':
-            img_name = os.path.join(self.root_dir, '/NORMAL', 'n_'+indx)
-        else:
-            if 'v' in type:
-                img_name = os.path.join(self.root_dir, '/PNEUMONIA',
-                                        'p_' + person + '_v_' + indx)
-            else:
-                img_name = os.path.join(self.root_dir, '/PNEUMONIA',
-                                        'p_' + person + '_b_' + indx)
+        img_name = os.path.join(self.root_dir, self.dataframe['feature'][indx], self.dataframe['name'][indx]+'.jpeg')
 
         pre_image = cv2.imread(img_name)
         image = Image.fromarray(pre_image)  #convert to PIL
 
         if self.is_train:
-            label_key = self.type
+            label_key = self.dataframe.iloc[indx,1]
             label = torch.tensor(int(label2id[label_key]))
         else:
             label = torch.tensor(1)
 
         return image, label
 
-batch_size = 4
 
-test_data = XRaySet(root_dir = 'chest_xray/test', is_train=False)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, num_workers=2, shuffle=False)
+# class XRaySet(Dataset):
+#     def __init__(self, root_dir, is_train):
+#         self.root_dir = root_dir
+#         self.is_train = is_train
+#
+#     def __len__(self):
+#           return len(self.dataframe)
+#
+#     def __getitem__(self, type, person, indx):
+#
+#         if torch.is_tensor(indx):
+#             indx = indx.tolist()
+#
+#         if type == 'n':
+#             img_name = os.path.join(self.root_dir, '/NORMAL', 'n_'+indx)
+#         else:
+#             if 'v' in type:
+#                 img_name = os.path.join(self.root_dir, '/PNEUMONIA',
+#                                         'p_' + person + '_v_' + indx)
+#             else:
+#                 img_name = os.path.join(self.root_dir, '/PNEUMONIA',
+#                                         'p_' + person + '_b_' + indx)
+#
+#         pre_image = cv2.imread(img_name)
+#         image = Image.fromarray(pre_image)  #convert to PIL
+#
+#         if self.is_train:
+#             label_key = self.type
+#             label = torch.tensor(int(label2id[label_key]))
+#         else:
+#             label = torch.tensor(1)
+#
+#         return image, label
+
+#batch_size = 4
+
+#test_data = XRaySet(chest_xray_data, root_dir = 'chest_xray/test', is_train=False)
+#test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, num_workers=2, shuffle=False)
 
 
 
