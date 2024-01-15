@@ -32,6 +32,23 @@ import torch.nn.functional as F
 classes = ('normal', 'p_v', 'p_b')
 
 if __name__ == '__main__':
+    # for root,_,files in os.walk('chest_xray'):
+    #     for filename in files:
+    #         if filename[-5:] == ('.jpeg'):
+    #             downsample(os.path.join(root,filename), 750, 500,os.path.join(root,filename))
+
+    #x_rename('chest_xray')
+    #makeCSV('chest_xray')
+  
+  batch_size = 4
+  end_data_test = 624
+
+  test_df = pd.read_csv('chest_xray_data.csv', nrows=end_data_test, header=0)
+
+  test_data = XRaySet(test_df, root_dir = 'chest_xray/test', is_train=False)
+  test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, num_workers=2, shuffle=False)
+
+
   
   net = nn.Module()  #base class for neural networks
   
