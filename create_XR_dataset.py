@@ -14,7 +14,7 @@ class XRaySet(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         img_data = self.img_labels.iloc[index]
-        img_path = os.path.join(self.img_dir, self.img_labels.iloc[index, 2], '.jpeg')
+        img_path = os.path.join(self.img_dir, self.img_labels.iloc[index, 1], '.jpeg')
         img = tvio.read_image(img_path, tvio.ImageReadMode.GRAY)
         label = img_data ['label']
         return img, label
