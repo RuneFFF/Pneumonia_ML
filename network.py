@@ -18,8 +18,8 @@ torch.manual_seed(random_seed)
 
 data_set = XRaySet('chest_xray_data.csv', '../chest_xray')
 
-training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()))]
-test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__())]
+training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
+test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__()-1)]
 
 train_loader = torch.utils.data.DataLoader(training_data, batch_size=batch_size_train, shuffle=True)
 test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size_train, shuffle=True)
@@ -43,5 +43,25 @@ class Network(nn.Module):
         return F.log_softmax(x)
 
 if __name__=='__main__':
+
+    #define model
     net = Network()
+    #define optimizer
     opt = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
+    #define criterion
+    criterion = F.cross_entropy
+
+    #loop
+    for i, data in enumerate(train_loader, 0):
+        input, label = data
+
+        #set gradient to zero
+        opt.zero_grad()
+
+        outputs = Network(input)
+        loss = criterion(outputs, input)
+        loss.backward()
+        opt.step()
+
+        if i % 10 == 0:
+            print(f'[{i + 1:5d}] loss: {loss / 2000:.3f}')
