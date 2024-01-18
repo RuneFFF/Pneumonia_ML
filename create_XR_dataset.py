@@ -10,14 +10,14 @@ class XRaySet(torch.utils.data.Dataset):
         self.img_dir = img_dir
 
     def __len__(self):
-        return len(self.img_labels)-1
+        return len(self.img_labels)
 
     def __getitem__(self, index):
         img_data = self.img_labels.iloc[index]
-        img_path = os.path.join(self.img_dir, img_data['type'], img_data['feature'], self.img_labels.iloc[index, 2], '.jpeg')
+        img_path = os.path.join(self.img_dir, self.img_labels.iloc[index, 2], '.jpeg')
         img = tvio.read_image(img_path, tvio.ImageReadMode.GRAY)
         label = img_data ['label']
         return img, label
 
 X = XRaySet('chest_xray_data.csv', '../chest_xray')
-print(X.__getitem__(25))
+print(X.__len__())
