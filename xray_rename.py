@@ -1,5 +1,4 @@
 import os
-import numpy as np
 
 def x_rename(path):
     n_normal = 0
@@ -25,4 +24,4 @@ def x_rename(path):
 
                 os.rename(os.path.join(dir, f), os.path.join(dir, new_name))
 
-#x_rename('chest_xray')
+#x_rename('../chest_xray')
