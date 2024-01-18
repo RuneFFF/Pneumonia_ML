@@ -20,4 +20,4 @@ class XRaySet(torch.utils.data.Dataset):
         return img, label
 
 X = XRaySet('chest_xray_data.csv', '../chest_xray')
-print(X.__len__())
+#print(X.__len__())
