@@ -8,6 +8,7 @@ import torch.utils
 from create_XR_dataset import XRaySet
 from matplotlib import pyplot as plt
 import numpy as np
+import timm
 
 n_epochs = 3
 batch_size_train = 64
@@ -52,24 +53,61 @@ test_loader = torch.utils.data.DataLoader(dataset=test_data, batch_size=batch_si
 #                              ])),
 #   batch_size=batch_size_test, shuffle=True)
 
+
 class Network(nn.Module):
     def __init__(self):
-        super(Network, self).__init__()
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 10)
-
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Conv2d(1, 32, (3, 3)), #(1 Channel, 32 filters of shape (3,3)kernels
+            nn.ReLU(),    #activation
+            nn.Conv2d(32, 64, (3, 3)),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, (3, 3)),
+            nn.ReLU(),
+            nn.Flatten(), #some shaving of of 2 pixels per layer, therefore compensation is needed
+            nn.Linear(64*(500-6)*(750-6),3)#output_size*dim1_img*dim2_img,number_outputclasses (ergo die 0,1,2 der label)
+        )
     def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 320)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
-        return F.log_softmax(x)
+            return self.model(x)
 
+#################################
+# class Network(nn.Module):
+#     def __init__(self):
+#         super().__init__()
+#         self.conv1 = nn.Conv2d(3, 6, 5)
+#         self.pool = nn.MaxPool2d(2, 2)
+#         self.conv2 = nn.Conv2d(6, 16, 5)
+#         self.fc1 = nn.Linear(16 * 5 * 5, 120)
+#         self.fc2 = nn.Linear(120, 84)
+#         self.fc3 = nn.Linear(84, 10)
+#
+#     def forward(self, x):
+#         x = self.pool(F.relu(self.conv1(x)))
+#         x = self.pool(F.relu(self.conv2(x)))
+#         x = torch.flatten(x, 1) # flatten all dimensions except batch
+#         x = F.relu(self.fc1(x))
+#         x = F.relu(self.fc2(x))
+#         x = self.fc3(x)
+#         return x
+#############################
+# class Network(nn.Module):
+#     def __init__(self):
+#         super(Network, self).__init__()
+#         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+#         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+#         self.conv2_drop = nn.Dropout2d()
+#         self.fc1 = nn.Linear(320, 50)
+#         self.fc2 = nn.Linear(50, 10)
+#
+#     def forward(self, x):
+#         x = F.relu(F.max_pool2d(self.conv1(x), 2))
+#         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+#         x = x.view(-1, 320)
+#         x = F.relu(self.fc1(x))
+#         x = F.dropout(x, training=self.training)
+#         x = self.fc2(x)
+#         return F.log_softmax(x)
+########################
 
 train_losses = []
 train_counter = []
@@ -114,6 +152,7 @@ if __name__=='__main__':
 
     #define model
     net = Network()
+    #timm.create_model('efficientnet_b4', pretrained=True, num_classes=2, in_chans=3)
     #define optimizer
     opt = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
     #define criterion
