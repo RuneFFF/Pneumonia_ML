@@ -21,7 +21,8 @@ def downsample(path, width, height, savepath):
         barred = img
 
     final = (cv2.resize(barred, dsize=(width, height), interpolation=cv2.INTER_CUBIC))
-    Image.fromarray(final).convert('L').save(savepath)
+    #Image.fromarray(final).convert('L').save(savepath)
+    Image.fromarray(final).save(savepath)
 
 #downsample('IM-0073-0001.jpeg', 750, 500, 'img.jpeg')
 for root,_,files in os.walk('../chest_xray'):
