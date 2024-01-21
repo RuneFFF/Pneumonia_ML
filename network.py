@@ -1,8 +1,10 @@
 import torch
 import torchvision
+import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torch.utils
 from create_XR_dataset import XRaySet
 from matplotlib import pyplot as plt
 import numpy as np
@@ -18,13 +20,19 @@ random_seed = 1
 torch.backends.cudnn.enabled = False
 torch.manual_seed(random_seed)
 
-data_set = XRaySet('chest_xray_data.csv', '../chest_xray')
+#training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
+#test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__()-1)]
 
-training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
-test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__()-1)]
+data_set = XRaySet('chest_xray_data.csv', '../chest_xray', transform=transforms.ToTensor())
+data_length = data_set.__len__()
+split1 = int(0.8*data_length)
+split2 = int(0.2*data_length)+1
 
-train_loader = torch.utils.data.DataLoader(training_data, batch_size=batch_size_train, shuffle=True)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size_train, shuffle=True)
+
+training_data, test_data = torch.utils.data.random_split(data_set, [split1, split2])
+
+train_loader = torch.utils.data.DataLoader(dataset=training_data, batch_size=batch_size_train, shuffle=True)
+test_loader = torch.utils.data.DataLoader(dataset=test_data, batch_size=batch_size_train, shuffle=True)
 
 #### MNIST Data Test
 # train_loader = torch.utils.data.DataLoader(torchvision.datasets.MNIST('./files/',
@@ -114,6 +122,16 @@ if __name__=='__main__':
 
     examples = enumerate(test_loader)
     batch_idx, (example_data, example_targets) = next(examples)
+
+    # fig = plt.figure()
+    # for i in range(6):
+    #     plt.subplot(2, 3, i + 1)
+    #     plt.tight_layout()
+    #     plt.imshow(example_data[i][0], cmap='gray', interpolation='none')
+    #     plt.title("Type: {}".format(example_targets[i]))
+    #     plt.xticks([])
+    #     plt.yticks([])
+    # plt.show()
 
     test()
     for epoch in range(1, n_epochs + 1):
