@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from create_XR_dataset import XRaySet
 from matplotlib import pyplot as plt
+import numpy as np
 
 n_epochs = 3
 batch_size_train = 64
@@ -19,29 +20,29 @@ torch.manual_seed(random_seed)
 
 data_set = XRaySet('chest_xray_data.csv', '../chest_xray')
 
-#training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
-#test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__()-1)]
+training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
+test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__()-1)]
 
-#train_loader = torch.utils.data.DataLoader(training_data, batch_size=batch_size_train, shuffle=True)
-#test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size_train, shuffle=True)
+train_loader = torch.utils.data.DataLoader(training_data, batch_size=batch_size_train, shuffle=True)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size_train, shuffle=True)
 
 #### MNIST Data Test
-train_loader = torch.utils.data.DataLoader(torchvision.datasets.MNIST('./files/',
-                            train=True, download=True,
-                             transform=torchvision.transforms.Compose([
-                               torchvision.transforms.ToTensor(),
-                               torchvision.transforms.Normalize(
-                                 (0.1307,), (0.3081,))])),
-                            batch_size=batch_size_train, shuffle=True)
-
-test_loader = torch.utils.data.DataLoader(
-  torchvision.datasets.MNIST('./files/', train=False, download=True,
-                             transform=torchvision.transforms.Compose([
-                               torchvision.transforms.ToTensor(),
-                               torchvision.transforms.Normalize(
-                                 (0.1307,), (0.3081,))
-                             ])),
-  batch_size=batch_size_test, shuffle=True)
+# train_loader = torch.utils.data.DataLoader(torchvision.datasets.MNIST('./files/',
+#                             train=True, download=True,
+#                              transform=torchvision.transforms.Compose([
+#                                torchvision.transforms.ToTensor(),
+#                                torchvision.transforms.Normalize(
+#                                  (0.1307,), (0.3081,))])),
+#                             batch_size=batch_size_train, shuffle=True)
+#
+# test_loader = torch.utils.data.DataLoader(
+#   torchvision.datasets.MNIST('./files/', train=False, download=True,
+#                              transform=torchvision.transforms.Compose([
+#                                torchvision.transforms.ToTensor(),
+#                                torchvision.transforms.Normalize(
+#                                  (0.1307,), (0.3081,))
+#                              ])),
+#   batch_size=batch_size_test, shuffle=True)
 
 class Network(nn.Module):
     def __init__(self):

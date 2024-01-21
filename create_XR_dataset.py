@@ -16,8 +16,14 @@ class XRaySet(torch.utils.data.Dataset):
         img_data = self.img_labels.iloc[index]
         img_path = os.path.join(self.img_dir, self.img_labels.iloc[index, 1] + '.jpeg')
         img = tvio.read_image(img_path, tvio.ImageReadMode.GRAY)
-        label = img_data ['label']
+        #label = img_data['label']
+        if img_data['label']=='N':
+            label = 0
+        elif img_data['label']=='B':
+            label = 1
+        elif img_data['label']=='V':
+            label = 2
         return img, label
 
 X = XRaySet('chest_xray_data.csv', '../chest_xray')
-#print(X.__len__())
+print(X.__getitem__(3))
