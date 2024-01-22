@@ -27,10 +27,16 @@ torch.manual_seed(random_seed)
 data_set = XRaySet('chest_xray_data.csv', '../chest_xray', transform=transforms.ToTensor())
 data_length = data_set.__len__()
 split1 = int(0.8*data_length)
-split2 = int(0.2*data_length)+1
+split2 = int(0.2*data_length)
+
+if split1+split2 < data_length: #failsave so whole set is plit
+    split2 = split2 + (data_length-split1-split2)
 
 
 training_data, test_data = torch.utils.data.random_split(data_set, [split1, split2])
+
+#training_data = training_data.type(torch.LongTensor)
+#test_data = test_data.type(torch.LongTensor)
 
 train_loader = torch.utils.data.DataLoader(dataset=training_data, batch_size=batch_size_train, shuffle=True)
 test_loader = torch.utils.data.DataLoader(dataset=test_data, batch_size=batch_size_train, shuffle=True)
@@ -121,6 +127,7 @@ def test():
   with torch.no_grad():
     for data, target in test_loader:
       output = net(data)
+      target = target.type(torch.LongTensor)
       test_loss += F.nll_loss(output, target, size_average=False).item()
       pred = output.data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
@@ -134,6 +141,7 @@ def train(epoch):
     for batch_idx, (data, target) in enumerate(train_loader):
         opt.zero_grad()
         output = net(data)
+        target = target.type(torch.LongTensor)  #cast target to tensor of type Long for Loss function
         loss = criterion(output, target)
         loss.backward()
         opt.step()
