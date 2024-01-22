@@ -9,6 +9,7 @@ from create_XR_dataset import XRaySet
 from matplotlib import pyplot as plt
 import numpy as np
 import timm
+import csv
 
 n_epochs = 3
 batch_size_train = 64
@@ -24,7 +25,25 @@ torch.manual_seed(random_seed)
 #training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
 #test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__()-1)]
 
-data_set = XRaySet('chest_xray_data.csv', '../chest_xray', transform=transforms.ToTensor())
+number_images = 200
+rowcount = 0
+for row in open('chest_xray_data.csv'):
+    rowcount+= 1
+
+if number_images > rowcount:
+    print('Too many images selected')
+    exit()
+
+
+with open('chest_xray_data.csv', 'r') as orFile:
+    with open('chest_xray_dataParts.csv', 'w',newline='') as copFile:
+        data = orFile.readlines()
+        copFile.truncate()
+        for i in range(number_images+1):
+            copFile.write(data[i])
+
+
+data_set = XRaySet('chest_xray_dataParts.csv', '../chest_xray', transform=transforms.ToTensor())
 data_length = data_set.__len__()
 split1 = int(0.8*data_length)
 split2 = int(0.2*data_length)
