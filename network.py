@@ -9,6 +9,7 @@ from create_XR_dataset import XRaySet
 from matplotlib import pyplot as plt
 import numpy as np
 import timm
+import csv
 
 n_epochs = 3
 batch_size_train = 64
@@ -24,13 +25,37 @@ torch.manual_seed(random_seed)
 #training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
 #test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__()-1)]
 
-data_set = XRaySet('chest_xray_data.csv', '../chest_xray', transform=transforms.ToTensor())
+number_images = 200
+rowcount = 0
+for row in open('chest_xray_data.csv'):
+    rowcount+= 1
+
+if number_images > rowcount:
+    print('Too many images selected')
+    exit()
+
+
+with open('chest_xray_data.csv', 'r') as orFile:
+    with open('chest_xray_dataParts.csv', 'w',newline='') as copFile:
+        data = orFile.readlines()
+        copFile.truncate()
+        for i in range(number_images+1):
+            copFile.write(data[i])
+
+
+data_set = XRaySet('chest_xray_dataParts.csv', '../chest_xray', transform=transforms.ToTensor())
 data_length = data_set.__len__()
 split1 = int(0.8*data_length)
-split2 = int(0.2*data_length)+1
+split2 = int(0.2*data_length)
+
+if split1+split2 < data_length: #failsave so whole set is plit
+    split2 = split2 + (data_length-split1-split2)
 
 
 training_data, test_data = torch.utils.data.random_split(data_set, [split1, split2])
+
+#training_data = training_data.type(torch.LongTensor)
+#test_data = test_data.type(torch.LongTensor)
 
 train_loader = torch.utils.data.DataLoader(dataset=training_data, batch_size=batch_size_train, shuffle=True)
 test_loader = torch.utils.data.DataLoader(dataset=test_data, batch_size=batch_size_train, shuffle=True)
@@ -121,6 +146,7 @@ def test():
   with torch.no_grad():
     for data, target in test_loader:
       output = net(data)
+      target = target.type(torch.LongTensor)
       test_loss += F.nll_loss(output, target, size_average=False).item()
       pred = output.data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
@@ -134,6 +160,7 @@ def train(epoch):
     for batch_idx, (data, target) in enumerate(train_loader):
         opt.zero_grad()
         output = net(data)
+        target = target.type(torch.LongTensor)  #cast target to tensor of type Long for Loss function
         loss = criterion(output, target)
         loss.backward()
         opt.step()
