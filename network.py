@@ -53,7 +53,6 @@ if split1+split2 < data_length: #failsave so whole set is plit
 
 
 training_data, test_data = torch.utils.data.random_split(data_set, [split1, split2])
-
 #training_data = training_data.type(torch.LongTensor)
 #test_data = test_data.type(torch.LongTensor)
 
@@ -139,14 +138,16 @@ train_counter = []
 test_losses = []
 test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
 
-def test():
+def do_test():
   net.eval()
   test_loss = 0
   correct = 0
   with torch.no_grad():
     for data, target in test_loader:
-      output = net(data)
-      target = target.type(torch.LongTensor)
+      data = data.to(torch.device("cuda:0"))
+      target = target.to(torch.device("cuda:0"))
+      output = net(data).to(torch.device("cuda:0"))
+      target = target.type(torch.LongTensor).to(torch.device("cuda:0"))
       test_loss += F.nll_loss(output, target, size_average=False).item()
       pred = output.data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
@@ -158,6 +159,8 @@ def test():
 
 def train(epoch):
     for batch_idx, (data, target) in enumerate(train_loader):
+        data = data.to(torch.device("cuda:0"))
+        target = target.to(torch.device("cuda:0"))
         opt.zero_grad()
         output = net(data)
         target = target.type(torch.LongTensor)  #cast target to tensor of type Long for Loss function
@@ -179,6 +182,8 @@ if __name__=='__main__':
 
     #define model
     net = Network()
+    #GPU nutzen
+    net.to(torch.device("cuda:0"))
     #timm.create_model('efficientnet_b4', pretrained=True, num_classes=2, in_chans=3)
     #define optimizer
     opt = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
@@ -199,10 +204,10 @@ if __name__=='__main__':
     #     plt.yticks([])
     # plt.show()
 
-    test()
+    do_test()
     for epoch in range(1, n_epochs + 1):
         train(epoch)
-        test()
+        do_test()
 
     with torch.no_grad():
         output = net(example_data)
