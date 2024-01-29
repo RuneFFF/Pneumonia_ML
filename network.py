@@ -12,7 +12,7 @@ import timm
 import csv
 
 n_epochs = 3
-batch_size_train = 20#64
+batch_size_train = 64
 batch_size_test = 1000
 learning_rate = 0.01
 momentum = 0.5
@@ -25,7 +25,7 @@ torch.manual_seed(random_seed)
 #training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
 #test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__()-1)]
 
-number_images = 30
+number_images = 200
 rowcount = 0
 for row in open('chest_xray_data.csv'):
     rowcount+= 1
@@ -181,27 +181,13 @@ if __name__=='__main__':
     net = Network()
     #timm.create_model('efficientnet_b4', pretrained=True, num_classes=2, in_chans=3)
     #define optimizer
-    opt = optim.Adam(net.parameters(), lr=1e-3)#optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
+    opt = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
     #define criterion
-    criterion = F.cross_entropy
-    #criterion = F.nll_loss
+    #criterion = F.cross_entropy
+    criterion = F.nll_loss
 
-    #examples = enumerate(test_loader)
-    #batch_idx, (example_data, example_targets) = next(examples)
-
-    for epoch in range(5):
-        for batch_idx, (data, target) in enumerate(train_loader):
-            output = net(data)
-            target = target.type(torch.LongTensor)
-            loss = criterion(output, target)
-
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
-
-        print(f"Epoch:{epoch+1}, loss:{loss.item()}")
-
-
+    examples = enumerate(test_loader)
+    batch_idx, (example_data, example_targets) = next(examples)
 
     # fig = plt.figure()
     # for i in range(6):
@@ -213,14 +199,15 @@ if __name__=='__main__':
     #     plt.yticks([])
     # plt.show()
 
-    # test()
-    # for epoch in range(1, n_epochs + 1):
-    #     train(epoch)
-    #     test()
+    test()
+    for epoch in range(1, n_epochs + 1):
+        train(epoch)
+        test()
 
-    # with torch.no_grad():
-    #     output = net(example_data)
-    #
+    with torch.no_grad():
+        output = net(example_data)
+
+
     # plt.figure()
     # for i in range(6):
     #     plt.subplot(2, 3, i + 1)
@@ -231,9 +218,9 @@ if __name__=='__main__':
     #     plt.xticks([])
     #     plt.yticks([])
     # plt.show()
-    #
-    #
-    #
+
+
+
     # plt.figure()
     # plt.plot(train_counter, train_losses, color='blue')
     # plt.scatter(test_counter, test_losses, color='red')

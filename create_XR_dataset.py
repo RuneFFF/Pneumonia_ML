@@ -34,5 +34,6 @@ class XRaySet(torch.utils.data.Dataset):
         label = torch.tensor(label, dtype=torch.float32)
         return img, label
 
-X = XRaySet('chest_xray_data.csv', '../chest_xray')
-print(X.__getitem__(3))
+if __name__=='__main__':
+    X = XRaySet('chest_xray_data.csv', '../chest_xray')
+    print(X.__getitem__(3))
