@@ -10,8 +10,8 @@ import numpy as np
 import timm
 
 n_epochs = 20
-batch_size_train = 16
-batch_size_test = 16
+batch_size_train = 32
+batch_size_test = 32
 learning_rate = 0.01
 momentum = 0.5
 log_interval = 10
@@ -80,19 +80,35 @@ test_loader = torch.utils.data.DataLoader(dataset=test_data, batch_size=batch_si
 
 class Network(nn.Module):
     def __init__(self):
-        super().__init__()
-        self.model = nn.Sequential(
-            nn.Conv2d(1, 32, (3, 3)), #(1 Channel, 32 filters of shape (3,3)kernels
-            nn.ReLU(),    #activation
-            nn.Conv2d(32, 64, (3, 3)),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, (3, 3)),
-            nn.ReLU(),
-            nn.Flatten(), #some shaving of of 2 pixels per layer, therefore compensation is needed
-            nn.Linear(64*(500-6)*(750-6),3)#output_size*dim1_img*dim2_img,number_outputclasses (ergo die 0,1,2 der label)
-        )
+        super(Network, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=5)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=5)
+        #self.conv2_drop = nn.Dropout2d()
+        self.fc1 = nn.Linear(64*122*184, 64)
+        self.fc2 = nn.Linear(64, 3)
+
     def forward(self, x):
-            return self.model(x)
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2(x), 2))
+        x = x.view(x.size(0), -1)
+        x = F.relu(self.fc1(x))
+        x = F.dropout(x, training=self.training)
+        x = self.fc2(x)
+        return F.log_softmax(x, dim=0)
+
+    #     super().__init__()
+    #     self.model = nn.Sequential(
+    #         nn.Conv2d(1, 32, (3, 3)), #(1 Channel, 32 filters of shape (3,3)kernels
+    #         nn.ReLU(),    #activation
+    #         nn.Conv2d(32, 64, (3, 3)),
+    #         nn.ReLU(),
+    #         nn.Conv2d(64, 64, (3, 3)),
+    #         nn.ReLU(),
+    #         nn.Flatten(), #some shaving of of 2 pixels per layer, therefore compensation is needed
+    #         nn.Linear(64*(500-6)*(750-6),3)#output_size*dim1_img*dim2_img,number_outputclasses (ergo die 0,1,2 der label)
+    #     )
+    # def forward(self, x):
+    #         return self.model(x)
 
 #################################
 # class Network(nn.Module):
@@ -145,7 +161,6 @@ def do_test():
   with torch.no_grad():
     for data, target in test_loader:
       data = data.to(torch.device("cuda:0"))
-      target = target.to(torch.device("cuda:0"))
       output = net(data).to(torch.device("cuda:0"))
       target = target.type(torch.LongTensor).to(torch.device("cuda:0"))
       test_loss += criterion(output, target).item()
@@ -160,7 +175,6 @@ def do_test():
 def train(epoch):
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.to(torch.device("cuda:0"))
-        target = target.to(torch.device("cuda:0"))
         opt.zero_grad()
         output = net(data).to(torch.device("cuda:0"))
         target = target.type(torch.LongTensor).to(torch.device("cuda:0"))  #cast target to tensor of type Long for Loss function
