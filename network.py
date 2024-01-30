@@ -148,7 +148,7 @@ def do_test():
       target = target.to(torch.device("cuda:0"))
       output = net(data).to(torch.device("cuda:0"))
       target = target.type(torch.LongTensor).to(torch.device("cuda:0"))
-      test_loss += F.nll_loss(output, target, size_average=False).item()
+      test_loss += criterion(output, target).item()
       pred = output.data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
   test_loss /= len(test_loader.dataset)
