@@ -1,5 +1,4 @@
 import torch
-import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,11 +8,10 @@ from create_XR_dataset import XRaySet
 from matplotlib import pyplot as plt
 import numpy as np
 import timm
-import csv
 
 n_epochs = 3
-batch_size_train = 64
-batch_size_test = 1000
+batch_size_train = 16
+batch_size_test = 16
 learning_rate = 0.01
 momentum = 0.5
 log_interval = 10
@@ -25,12 +23,14 @@ torch.manual_seed(random_seed)
 #training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
 #test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__()-1)]
 
-number_images = 200
+number_images = 'all'
 rowcount = 0
 for row in open('chest_xray_data.csv'):
     rowcount+= 1
 
-if number_images > rowcount:
+if number_images == 'all':
+    number_images = rowcount-1
+elif number_images > rowcount:
     print('Too many images selected')
     exit()
 
@@ -162,8 +162,8 @@ def train(epoch):
         data = data.to(torch.device("cuda:0"))
         target = target.to(torch.device("cuda:0"))
         opt.zero_grad()
-        output = net(data)
-        target = target.type(torch.LongTensor)  #cast target to tensor of type Long for Loss function
+        output = net(data).to(torch.device("cuda:0"))
+        target = target.type(torch.LongTensor).to(torch.device("cuda:0"))  #cast target to tensor of type Long for Loss function
         loss = criterion(output, target)
         loss.backward()
         opt.step()
@@ -188,11 +188,13 @@ if __name__=='__main__':
     #define optimizer
     opt = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
     #define criterion
-    #criterion = F.cross_entropy
-    criterion = F.nll_loss
+    criterion = F.cross_entropy
+    #criterion = F.nll_loss
 
     examples = enumerate(test_loader)
     batch_idx, (example_data, example_targets) = next(examples)
+    example_data.to(torch.device("cuda:0"))
+    example_targets.to(torch.device("cuda:0"))
 
     # fig = plt.figure()
     # for i in range(6):
@@ -210,7 +212,7 @@ if __name__=='__main__':
         do_test()
 
     with torch.no_grad():
-        output = net(example_data)
+        output = net(example_data.to(torch.device("cuda:0")))
 
 
     # plt.figure()
