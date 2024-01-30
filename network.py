@@ -9,10 +9,10 @@ from matplotlib import pyplot as plt
 import numpy as np
 import timm
 
-n_epochs = 20
+n_epochs = 30
 batch_size_train = 32
 batch_size_test = 32
-learning_rate = 0.01
+learning_rate = 0.0005
 momentum = 0.5
 log_interval = 10
 
@@ -83,13 +83,13 @@ class Network(nn.Module):
         super(Network, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=5)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=5)
-        #self.conv2_drop = nn.Dropout2d()
+        self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(64*122*184, 64)
         self.fc2 = nn.Linear(64, 3)
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
         x = x.view(x.size(0), -1)
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
@@ -229,16 +229,27 @@ if __name__=='__main__':
         output = net(example_data.to(torch.device("cuda:0")))
 
 
-    # plt.figure()
-    # for i in range(6):
-    #     plt.subplot(2, 3, i + 1)
-    #     plt.tight_layout()
-    #     plt.imshow(example_data[i][0], cmap='gray', interpolation='none')
-    #     plt.title("Prediction: {}".format(
-    #         output.data.max(1, keepdim=True)[1][i].item()))
-    #     plt.xticks([])
-    #     plt.yticks([])
-    # plt.show()
+    plt.figure()
+    for i in range(32):
+        plt.subplot(4, 8, i + 1)
+        plt.tight_layout()
+        plt.imshow(example_data[i][0], cmap='gray', interpolation='none')
+        pred = output.data.max(1, keepdim=True)[1][i].item()
+        if pred == 0:
+            pred = 'Normal'
+        elif pred == 1:
+            pred = 'Bacterial'
+        else:
+            pred = 'Viral'
+        label = example_targets[i]
+        if label == 0:
+            label = 'Normal'
+        elif label == 1:
+            label = 'Bacterial'
+        else:
+            label = 'Viral'
+        plt.title("Prediction: "+pred+',\n Label: '+label)
+    plt.show()
 
 
 
