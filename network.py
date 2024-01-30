@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import timm
 
-n_epochs = 3
+n_epochs = 20
 batch_size_train = 16
 batch_size_test = 16
 learning_rate = 0.01
@@ -17,7 +17,7 @@ momentum = 0.5
 log_interval = 10
 
 random_seed = 1
-torch.backends.cudnn.enabled = False
+torch.backends.cudnn.enabled = True
 torch.manual_seed(random_seed)
 
 #training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
