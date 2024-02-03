@@ -7,12 +7,12 @@ import torch.utils
 from create_XR_dataset import XRaySet
 from matplotlib import pyplot as plt
 import numpy as np
-import timm
+#import timm
 
-n_epochs = 30
+n_epochs = 3
 batch_size_train = 32
 batch_size_test = 32
-learning_rate = 0.0005
+learning_rate = 0.01
 momentum = 0.5
 log_interval = 10
 
@@ -79,75 +79,61 @@ test_loader = torch.utils.data.DataLoader(dataset=test_data, batch_size=batch_si
 
 
 class Network(nn.Module):
+    # def __init__(self):
+    #     super(Network, self).__init__()
+    #     self.conv1 = nn.Conv2d(1, 16, kernel_size=5)
+    #     self.conv2 = nn.Conv2d(16, 32, kernel_size=5)
+    #     self.conv3 = nn.Conv2d(32, 48, kernel_size=5)
+    #     self.conv4 = nn.Conv2d(48, 64, kernel_size=5)
+    #     self.conv_drop = nn.Dropout2d()
+    #     self.fc1 = nn.Linear(64*27*43, 64)
+    #     self.fc2 = nn.Linear(64, 3)
+    #
+    # def forward(self, x):
+    #     x = F.relu(F.max_pool2d(self.conv1(x), 2))
+    #     x = F.relu(F.max_pool2d(self.conv2(x), 2))
+    #     x = F.relu(F.max_pool2d(self.conv3(x), 2))
+    #     x = F.relu(F.max_pool2d(self.conv_drop(self.conv4(x)), 2))
+    #     x = x.view(x.size(0), -1)
+    #     x = F.relu(self.fc1(x))
+    #     x = F.dropout(x, training=self.training)
+    #     x = self.fc2(x)
+    #     return F.log_softmax(x, dim=0)
+
     def __init__(self):
-        super(Network, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=5)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(64*122*184, 64)
-        self.fc2 = nn.Linear(64, 3)
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=(3, 3), stride=1, padding=1)
+        self.act1 = nn.ReLU()
+        self.drop1 = nn.Dropout(0.3)
+
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=(3, 3), stride=1, padding=1)
+        self.act2 = nn.ReLU()
+        self.pool2 = nn.MaxPool2d(kernel_size=(5, 5))
+
+        self.flat = nn.Flatten()
+
+        self.fc3 = nn.Linear(480000, 480)
+        self.act3 = nn.ReLU()
+        self.drop3 = nn.Dropout(0.5)
+
+        self.fc4 = nn.Linear(480, 3)
 
     def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(x.size(0), -1)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
-        return F.log_softmax(x, dim=0)
-
-    #     super().__init__()
-    #     self.model = nn.Sequential(
-    #         nn.Conv2d(1, 32, (3, 3)), #(1 Channel, 32 filters of shape (3,3)kernels
-    #         nn.ReLU(),    #activation
-    #         nn.Conv2d(32, 64, (3, 3)),
-    #         nn.ReLU(),
-    #         nn.Conv2d(64, 64, (3, 3)),
-    #         nn.ReLU(),
-    #         nn.Flatten(), #some shaving of of 2 pixels per layer, therefore compensation is needed
-    #         nn.Linear(64*(500-6)*(750-6),3)#output_size*dim1_img*dim2_img,number_outputclasses (ergo die 0,1,2 der label)
-    #     )
-    # def forward(self, x):
-    #         return self.model(x)
-
-#################################
-# class Network(nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#         self.conv1 = nn.Conv2d(3, 6, 5)
-#         self.pool = nn.MaxPool2d(2, 2)
-#         self.conv2 = nn.Conv2d(6, 16, 5)
-#         self.fc1 = nn.Linear(16 * 5 * 5, 120)
-#         self.fc2 = nn.Linear(120, 84)
-#         self.fc3 = nn.Linear(84, 10)
-#
-#     def forward(self, x):
-#         x = self.pool(F.relu(self.conv1(x)))
-#         x = self.pool(F.relu(self.conv2(x)))
-#         x = torch.flatten(x, 1) # flatten all dimensions except batch
-#         x = F.relu(self.fc1(x))
-#         x = F.relu(self.fc2(x))
-#         x = self.fc3(x)
-#         return x
-#############################
-# class Network(nn.Module):
-#     def __init__(self):
-#         super(Network, self).__init__()
-#         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-#         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-#         self.conv2_drop = nn.Dropout2d()
-#         self.fc1 = nn.Linear(320, 50)
-#         self.fc2 = nn.Linear(50, 10)
-#
-#     def forward(self, x):
-#         x = F.relu(F.max_pool2d(self.conv1(x), 2))
-#         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-#         x = x.view(-1, 320)
-#         x = F.relu(self.fc1(x))
-#         x = F.dropout(x, training=self.training)
-#         x = self.fc2(x)
-#         return F.log_softmax(x)
-########################
+        # input 1x500x750, output 32x500x750
+        x = self.act1(self.conv1(x))
+        x = self.drop1(x)
+        # input 32x500x750, output 32x500x750
+        x = self.act2(self.conv2(x))
+        # input 32x500x750, output 32x100x150
+        x = self.pool2(x)
+        # input 32x100x150, output 480000
+        x = self.flat(x)
+        # input 480000, output 480
+        x = self.act3(self.fc3(x))
+        x = self.drop3(x)
+        # input 480, output 3
+        x = self.fc4(x)
+        return x
 
 train_losses = []
 train_counter = []
@@ -156,17 +142,17 @@ test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
 
 def do_test():
   net.eval()
-  test_loss = 0
+  test_loss = []
   correct = 0
   with torch.no_grad():
     for data, target in test_loader:
       data = data.to(torch.device("cuda:0"))
       output = net(data).to(torch.device("cuda:0"))
       target = target.type(torch.LongTensor).to(torch.device("cuda:0"))
-      test_loss += criterion(output, target).item()
+      test_loss.append(criterion(output, target).item())
       pred = output.data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
-  test_loss /= len(test_loader.dataset)
+  test_loss = np.mean(test_loss)
   test_losses.append(test_loss)
   print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
     test_loss, correct, len(test_loader.dataset),
@@ -198,7 +184,6 @@ if __name__=='__main__':
     net = Network()
     #GPU nutzen
     net.to(torch.device("cuda:0"))
-    #timm.create_model('efficientnet_b4', pretrained=True, num_classes=2, in_chans=3)
     #define optimizer
     opt = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
     #define criterion
@@ -210,16 +195,6 @@ if __name__=='__main__':
     example_data.to(torch.device("cuda:0"))
     example_targets.to(torch.device("cuda:0"))
 
-    # fig = plt.figure()
-    # for i in range(6):
-    #     plt.subplot(2, 3, i + 1)
-    #     plt.tight_layout()
-    #     plt.imshow(example_data[i][0], cmap='gray', interpolation='none')
-    #     plt.title("Type: {}".format(example_targets[i]))
-    #     plt.xticks([])
-    #     plt.yticks([])
-    # plt.show()
-
     do_test()
     for epoch in range(1, n_epochs + 1):
         train(epoch)
@@ -228,10 +203,17 @@ if __name__=='__main__':
     with torch.no_grad():
         output = net(example_data.to(torch.device("cuda:0")))
 
+    plt.figure('Loss Evolution')
+    plt.plot(train_counter, train_losses, color='blue')
+    plt.scatter(test_counter, test_losses, color='red')
+    plt.legend(['Train Loss', 'Test Loss'], loc='upper right')
+    plt.xlabel('Number of Training Examples Seen')
+    plt.ylabel('Cross Entropy Loss')
+    plt.show()
 
-    plt.figure()
-    for i in range(32):
-        plt.subplot(4, 8, i + 1)
+    plt.figure('Examples')
+    for i in range(12):
+        plt.subplot(3, 4, i + 1)
         plt.tight_layout()
         plt.imshow(example_data[i][0], cmap='gray', interpolation='none')
         pred = output.data.max(1, keepdim=True)[1][i].item()
@@ -250,40 +232,3 @@ if __name__=='__main__':
             label = 'Viral'
         plt.title("Prediction: "+pred+',\n Label: '+label)
     plt.show()
-
-
-
-    # plt.figure()
-    # plt.plot(train_counter, train_losses, color='blue')
-    # plt.scatter(test_counter, test_losses, color='red')
-    # plt.legend(['Train Loss', 'Test Loss'], loc='upper right')
-    # plt.xlabel('number of training examples seen')
-    # plt.ylabel('negative log likelihood loss')
-    # plt.show()
-
-    # #loop
-    # for i, (data, target) in enumerate(train_loader):
-    #
-    #     #set gradient to zero
-    #     opt.zero_grad()
-    #
-    #
-    #
-    #     output = net(data)
-    #     loss = criterion(output, target)
-    #     loss.backward()
-    #     opt.step()
-    #
-    #
-    #     if i % log_interval == 0:
-    #         print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-    #             epoch, batch_idx * len(data), len(train_loader.dataset),
-    #                    100. * batch_idx / len(train_loader), loss.item()))
-    #         train_losses.append(loss.item())
-    #         train_counter.append(
-    #             (batch_idx * 64) + ((epoch - 1) * len(train_loader.dataset)))
-    #         torch.save(net.state_dict(), './results/model.pth')
-    #         torch.save(opt.state_dict(), './results/optimizer.pth')
-    #
-    #     if i % 10 == 0:
-    #        print(f'[{i + 1:5d}] loss: {loss / 2000:.3f}')
