@@ -7,6 +7,8 @@ import torch.utils
 from create_XR_dataset import XRaySet
 from matplotlib import pyplot as plt
 import numpy as np
+from math import inf
+import os
 
 class Network(nn.Module):
     def __init__(self):
@@ -86,8 +88,8 @@ def train(epoch):
     print('Train epoch: {} \tAvg. loss: {:.6f}'.format(
             epoch, np.mean(train_loss_epoch)))
     #save weights after each epoch (subject to change?)
-    torch.save(net.state_dict(), './results/model.pth')
-    torch.save(opt.state_dict(), './results/optimizer.pth')
+    # torch.save(net.state_dict(), './results/model.pth')
+    # torch.save(opt.state_dict(), './results/optimizer.pth')
 
 
 if __name__=='__main__':
@@ -142,10 +144,50 @@ if __name__=='__main__':
     test_losses = []
     test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
 
+    # best losses / weights
+    best_loss = inf
+    best_net = net.state_dict()
+    best_opt = opt.state_dict()
+
+    # load model if saved state exists
+    if os.path.exists(os.path.join(os.getcwd(),'results','checkpoint.pth')): 
+        checkpoint = torch.load(os.path.join(os.getcwd(),'results','checkpoint.pth'))
+        epoch = checkpoint['epoch'] # is this wanted?
+        net.load_state_dict(checkpoint['current_model_state_dict'])
+        opt.load_state_dict(checkpoint['current_optimizer_state_dict'])
+        best_net = checkpoint['best_model_state_dict']
+        best_opt = checkpoint['best_optimizer_state_dict']
+        best_loss = checkpoint['loss']  
+        train_losses = checkpoint['train_losses']
+        train_counter = checkpoint['train_counter']
+        test_losses = checkpoint['test_losses']
+        test_counter = checkpoint['test_counter']
+
     do_test()
     for epoch in range(1, n_epochs + 1):
         train(epoch)
         do_test()
+
+        # update best model parameters if loss is better than previous best
+        if test_losses[-1] < best_loss:
+            best_loss = test_losses[-1]
+            best_net = net.state_dict()
+            best_opt = opt.state_dict()
+
+        # save state of current and best model and optimizer, epoch and loss
+        torch.save({
+            'epoch': epoch, 
+            'current_model_state_dict': net.state_dict(),
+            'current_optimizer_state_dict': opt.state_dict(), 
+            'best_model_state_dict': best_net,
+            'best_optimizer_state_dict': best_opt, 
+            'loss': test_losses[-1], 
+            'train_losses': train_losses, 
+            'train_counter': train_counter, 
+            'test_losses': test_losses, 
+            'test_counter': test_counter
+        }, './results/checkpoint.pth') 
+
 
     # plot evolution of loss in training and testing
     plt.figure('Loss Evolution')
