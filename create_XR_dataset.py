@@ -17,8 +17,8 @@ class XRaySet(torch.utils.data.Dataset):
     def __getitem__(self, index):
         img_data = self.img_labels.iloc[index]
         img_path = os.path.join(self.root_dir, self.img_labels.iloc[index, 1] + '.jpeg')
-        img = io.imread(img_path)
-        #img = tvio.read_image(img_path, tvio.ImageReadMode.GRAY)
+        #img = io.imread(img_path)
+        img = tvio.read_image(img_path, tvio.ImageReadMode.GRAY)
 
         if self.transform:  #transforms image to torch tensor
             img = self.transform(img)
