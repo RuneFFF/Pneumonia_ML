@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from math import inf
 import os
+from copy import deepcopy
 
 class Network(nn.Module):
     def __init__(self):
@@ -66,6 +67,7 @@ def do_test():
       correct += pred.eq(target.data.view_as(pred)).sum()
   test_loss_mean = np.mean(test_loss)
   test_losses.append(test_loss_mean)
+  test_counter.append(test_counter[-1] + len(train_loader.dataset))
   print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
     test_loss_mean, correct, len(test_loader.dataset),
     100. * correct / len(test_loader.dataset)))
@@ -99,6 +101,7 @@ if __name__=='__main__':
     batch_size_test = 32
     learning_rate = 0.001
     # momentum = 0.5
+    keep_training_with_best_model = 0
 
     # manual random seed for reproducability
     random_seed = 1
@@ -142,7 +145,8 @@ if __name__=='__main__':
     train_losses = []
     train_counter = []
     test_losses = []
-    test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
+    #test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
+    test_counter = []
 
     # best losses / weights
     best_loss = inf
@@ -153,8 +157,12 @@ if __name__=='__main__':
     if os.path.exists(os.path.join(os.getcwd(),'results','checkpoint.pth')): 
         checkpoint = torch.load(os.path.join(os.getcwd(),'results','checkpoint.pth'))
         epoch = checkpoint['epoch'] # is this wanted?
-        net.load_state_dict(checkpoint['current_model_state_dict'])
-        opt.load_state_dict(checkpoint['current_optimizer_state_dict'])
+        if keep_training_with_best_model:
+            net.load_state_dict(checkpoint['best_model_state_dict'])
+            opt.load_state_dict(checkpoint['best_optimizer_state_dict'])
+        else:
+            net.load_state_dict(checkpoint['current_model_state_dict'])
+            opt.load_state_dict(checkpoint['current_optimizer_state_dict'])
         best_net = checkpoint['best_model_state_dict']
         best_opt = checkpoint['best_optimizer_state_dict']
         best_loss = checkpoint['loss']  
@@ -170,9 +178,9 @@ if __name__=='__main__':
 
         # update best model parameters if loss is better than previous best
         if test_losses[-1] < best_loss:
-            best_loss = test_losses[-1]
-            best_net = net.state_dict()
-            best_opt = opt.state_dict()
+            best_loss = deepcopy(test_losses[-1])
+            best_net = deepcopy(net.state_dict())
+            best_opt = deepcopy(opt.state_dict())
 
         # save state of current and best model and optimizer, epoch and loss
         torch.save({
