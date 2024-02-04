@@ -7,21 +7,17 @@ import torch.utils
 from create_XR_dataset import XRaySet
 from matplotlib import pyplot as plt
 import numpy as np
-#import timm
 
 n_epochs = 3
 batch_size_train = 32
 batch_size_test = 32
-learning_rate = 0.01
-momentum = 0.5
-log_interval = 10
+learning_rate = 0.001
+#momentum = 0.5
+#log_interval = 80
 
 random_seed = 1
 torch.backends.cudnn.enabled = True
 torch.manual_seed(random_seed)
-
-#training_data = [data_set.__getitem__(i) for i in range(0, int(0.8*data_set.__len__()-1))]
-#test_data = [data_set.__getitem__(i) for i in range(int(0.8*data_set.__len__()), data_set.__len__()-1)]
 
 number_images = 'all'
 rowcount = 0
@@ -48,58 +44,16 @@ data_length = data_set.__len__()
 split1 = int(0.8*data_length)
 split2 = int(0.2*data_length)
 
-if split1+split2 < data_length: #failsave so whole set is plit
+if split1+split2 < data_length: #failsave so whole set is split
     split2 = split2 + (data_length-split1-split2)
 
 
 training_data, test_data = torch.utils.data.random_split(data_set, [split1, split2])
-#training_data = training_data.type(torch.LongTensor)
-#test_data = test_data.type(torch.LongTensor)
 
-train_loader = torch.utils.data.DataLoader(dataset=training_data, batch_size=batch_size_train, shuffle=True)
-test_loader = torch.utils.data.DataLoader(dataset=test_data, batch_size=batch_size_train, shuffle=True)
-
-#### MNIST Data Test
-# train_loader = torch.utils.data.DataLoader(torchvision.datasets.MNIST('./files/',
-#                             train=True, download=True,
-#                              transform=torchvision.transforms.Compose([
-#                                torchvision.transforms.ToTensor(),
-#                                torchvision.transforms.Normalize(
-#                                  (0.1307,), (0.3081,))])),
-#                             batch_size=batch_size_train, shuffle=True)
-#
-# test_loader = torch.utils.data.DataLoader(
-#   torchvision.datasets.MNIST('./files/', train=False, download=True,
-#                              transform=torchvision.transforms.Compose([
-#                                torchvision.transforms.ToTensor(),
-#                                torchvision.transforms.Normalize(
-#                                  (0.1307,), (0.3081,))
-#                              ])),
-#   batch_size=batch_size_test, shuffle=True)
-
+train_loader = torch.utils.data.DataLoader(dataset=training_data, batch_size=batch_size_train, shuffle=True, pin_memory=True, num_workers=8, persistent_workers=True)
+test_loader = torch.utils.data.DataLoader(dataset=test_data, batch_size=batch_size_train, shuffle=True, pin_memory=True, num_workers=8, persistent_workers=True)
 
 class Network(nn.Module):
-    # def __init__(self):
-    #     super(Network, self).__init__()
-    #     self.conv1 = nn.Conv2d(1, 16, kernel_size=5)
-    #     self.conv2 = nn.Conv2d(16, 32, kernel_size=5)
-    #     self.conv3 = nn.Conv2d(32, 48, kernel_size=5)
-    #     self.conv4 = nn.Conv2d(48, 64, kernel_size=5)
-    #     self.conv_drop = nn.Dropout2d()
-    #     self.fc1 = nn.Linear(64*27*43, 64)
-    #     self.fc2 = nn.Linear(64, 3)
-    #
-    # def forward(self, x):
-    #     x = F.relu(F.max_pool2d(self.conv1(x), 2))
-    #     x = F.relu(F.max_pool2d(self.conv2(x), 2))
-    #     x = F.relu(F.max_pool2d(self.conv3(x), 2))
-    #     x = F.relu(F.max_pool2d(self.conv_drop(self.conv4(x)), 2))
-    #     x = x.view(x.size(0), -1)
-    #     x = F.relu(self.fc1(x))
-    #     x = F.dropout(x, training=self.training)
-    #     x = self.fc2(x)
-    #     return F.log_softmax(x, dim=0)
-
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=(3, 3), stride=1, padding=1)
@@ -147,35 +101,35 @@ def do_test():
   with torch.no_grad():
     for data, target in test_loader:
       data = data.to(torch.device("cuda:0"))
-      output = net(data).to(torch.device("cuda:0"))
+      output = net(data)
       target = target.type(torch.LongTensor).to(torch.device("cuda:0"))
       test_loss.append(criterion(output, target).item())
       pred = output.data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
-  test_loss = np.mean(test_loss)
-  test_losses.append(test_loss)
+  test_loss_mean = np.mean(test_loss)
+  test_losses.append(test_loss_mean)
   print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-    test_loss, correct, len(test_loader.dataset),
+    test_loss_mean, correct, len(test_loader.dataset),
     100. * correct / len(test_loader.dataset)))
 
 def train(epoch):
+    net.train()
+    train_loss_epoch = []
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.to(torch.device("cuda:0"))
         opt.zero_grad()
-        output = net(data).to(torch.device("cuda:0"))
+        output = net(data)
         target = target.type(torch.LongTensor).to(torch.device("cuda:0"))  #cast target to tensor of type Long for Loss function
         loss = criterion(output, target)
         loss.backward()
         opt.step()
-        if batch_idx % log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
-                       100. * batch_idx / len(train_loader), loss.item()))
-            train_losses.append(loss.item())
-            train_counter.append(
-                (batch_idx * 64) + ((epoch - 1) * len(train_loader.dataset)))
-            torch.save(net.state_dict(), './results/model.pth')
-            torch.save(opt.state_dict(), './results/optimizer.pth')
+        train_loss_epoch.append(loss.item())
+        train_losses.append(loss.item())
+        train_counter.append((batch_idx * batch_size_train) + ((epoch - 1) * len(train_loader.dataset)))
+    print('Train epoch: {} \tAvg. loss: {:.6f}'.format(
+            epoch, np.mean(train_loss_epoch)))
+    torch.save(net.state_dict(), './results/model.pth')
+    torch.save(opt.state_dict(), './results/optimizer.pth')
 
 
 if __name__=='__main__':
@@ -185,7 +139,8 @@ if __name__=='__main__':
     #GPU nutzen
     net.to(torch.device("cuda:0"))
     #define optimizer
-    opt = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
+    #opt = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
+    opt = optim.Adam(net.parameters(), lr=learning_rate)
     #define criterion
     criterion = F.cross_entropy
     #criterion = F.nll_loss
@@ -207,9 +162,9 @@ if __name__=='__main__':
     plt.plot(train_counter, train_losses, color='blue')
     plt.scatter(test_counter, test_losses, color='red')
     plt.legend(['Train Loss', 'Test Loss'], loc='upper right')
+    plt.ylim((0, 2))
     plt.xlabel('Number of Training Examples Seen')
     plt.ylabel('Cross Entropy Loss')
-    plt.show()
 
     plt.figure('Examples')
     for i in range(12):
