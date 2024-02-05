@@ -22,7 +22,7 @@ class Network(nn.Module):
         # 2nd convolutional layer, rectified linear unit function, max pooling of 3x3 squares for size reduction and lower translation sensitivity
         self.conv2 = nn.Conv2d(16, 16, kernel_size=(3, 3), stride=1, padding=1)
         self.act2 = nn.ReLU()
-        self.pool2 = nn.MaxPool2d(kernel_size=(3,3))
+        self.pool2 = nn.MaxPool2d(kernel_size=(3, 3))
 
         # flattening to prepare for linear layers (make 1D-array)
         self.flat = nn.Flatten()
@@ -36,14 +36,14 @@ class Network(nn.Module):
         self.fc4 = nn.Linear(480, 3)
 
     def forward(self, x):
-        # input 1x500x750, output 32x500x750
+        # input 1x500x750, output 16x500x750
         x = self.act1(self.conv1(x))
         x = self.drop1(x)
-        # input 32x500x750, output 32x500x750
+        # input 16x500x750, output 16x500x750
         x = self.act2(self.conv2(x))
-        # input 32x500x750, output 32x166x259
+        # input 16x500x750, output 16x166x259
         x = self.pool2(x)
-        # input 32x166x250, output 664000
+        # input 16x166x187, output 664000
         x = self.flat(x)
         # input 664000, output 480
         x = self.act3(self.fc3(x))
@@ -53,7 +53,7 @@ class Network(nn.Module):
         return x
 
 # test loop
-def do_test():
+def do_test(epoch):
   net.eval()
   test_loss = []
   correct = 0
@@ -67,10 +67,7 @@ def do_test():
       correct += pred.eq(target.data.view_as(pred)).sum()
   test_loss_mean = np.mean(test_loss)
   test_losses.append(test_loss_mean)
-  if test_counter != []:
-    test_counter.append(test_counter[-1] + len(train_loader.dataset))
-  else:
-    test_counter.append(0)
+  test_counter.append((epoch-1) * len(train_loader.dataset))
   print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
     test_loss_mean, correct, len(test_loader.dataset),
     100. * correct / len(test_loader.dataset)))
@@ -89,21 +86,18 @@ def train(epoch):
         opt.step()
         train_loss_epoch.append(loss.item())
         train_losses.append(loss.item())
-        train_counter.append((batch_idx * batch_size_train) + ((epoch - 1) * len(train_loader.dataset)))
+        train_counter.append((batch_idx * batch_size_train) + ((epoch - 2) * len(train_loader.dataset)))
     print('Train epoch: {} \tAvg. loss: {:.6f}'.format(
             epoch, np.mean(train_loss_epoch)))
-    # save weights after each epoch (subject to change?)
-    # torch.save(net.state_dict(), './results/model.pth')
-    # torch.save(opt.state_dict(), './results/optimizer.pth')
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     # hyperparameters
     n_epochs = 1
     batch_size_train = 64
     batch_size_test = 64
     learning_rate = 0.00005
-    keep_training_with_best_model = 0
+    keep_training_with_best_model = True
 
     # define model
     net = Network()
@@ -145,7 +139,6 @@ if __name__=='__main__':
     train_losses = []
     train_counter = []
     test_losses = []
-    # test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
     test_counter = []
 
     # best losses / weights
@@ -154,12 +147,15 @@ if __name__=='__main__':
     best_opt = opt.state_dict()
 
     # load model if saved state exists
+    loaded_epoch = 0
     if os.path.exists(os.path.join(os.getcwd(), 'results', 'checkpoint.pth')):
         checkpoint = torch.load(os.path.join(os.getcwd(), 'results', 'checkpoint.pth'))
-        epoch = checkpoint['epoch'] # is this wanted?
+        loaded_epoch = checkpoint['epoch']
+        # if specified, use best available model
         if keep_training_with_best_model:
             net.load_state_dict(checkpoint['best_model_state_dict'])
             opt.load_state_dict(checkpoint['best_optimizer_state_dict'])
+        # otherwise, use the most recent model
         else:
             net.load_state_dict(checkpoint['current_model_state_dict'])
             opt.load_state_dict(checkpoint['current_optimizer_state_dict'])
@@ -171,20 +167,22 @@ if __name__=='__main__':
         test_losses = checkpoint['test_losses']
         test_counter = checkpoint['test_counter']
 
-    do_test()
+    # do_test(loaded_epoch)
+    if loaded_epoch == 0:
+        do_test(loaded_epoch)
     for epoch in range(1, n_epochs + 1):
-        train(epoch)
-        do_test()
+        train(epoch+loaded_epoch)
+        do_test(epoch+loaded_epoch)
 
         # update best model parameters if loss is better than previous best
         if test_losses[-1] < best_loss:
-            best_loss = deepcopy(test_losses[-1])
-            best_net = deepcopy(net.state_dict())
-            best_opt = deepcopy(opt.state_dict())
+            best_loss = test_losses[-1]
+            best_net = net.state_dict()
+            best_opt = opt.state_dict()
 
         # save state of current and best model and optimizer, epoch and loss
         torch.save({
-            'epoch': epoch, 
+            'epoch': epoch,
             'current_model_state_dict': net.state_dict(),
             'current_optimizer_state_dict': opt.state_dict(), 
             'best_model_state_dict': best_net,
@@ -202,6 +200,7 @@ if __name__=='__main__':
     plt.scatter(test_counter, test_losses, color='red', zorder=2)
     plt.legend(['Train Loss', 'Test Loss'], loc='upper right')
     plt.ylim((0, 2))
+    plt.grid()
     plt.xlabel('Number of Training Examples Seen')
     plt.ylabel('Cross Entropy Loss')
 
