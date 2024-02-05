@@ -67,7 +67,10 @@ def do_test():
       correct += pred.eq(target.data.view_as(pred)).sum()
   test_loss_mean = np.mean(test_loss)
   test_losses.append(test_loss_mean)
-  test_counter.append(test_counter[-1] + len(train_loader.dataset))
+  if test_counter != []:
+    test_counter.append(test_counter[-1] + len(train_loader.dataset))
+  else:
+    test_counter.append(0)
   print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
     test_loss_mean, correct, len(test_loader.dataset),
     100. * correct / len(test_loader.dataset)))
@@ -89,28 +92,36 @@ def train(epoch):
         train_counter.append((batch_idx * batch_size_train) + ((epoch - 1) * len(train_loader.dataset)))
     print('Train epoch: {} \tAvg. loss: {:.6f}'.format(
             epoch, np.mean(train_loss_epoch)))
-    #save weights after each epoch (subject to change?)
+    # save weights after each epoch (subject to change?)
     # torch.save(net.state_dict(), './results/model.pth')
     # torch.save(opt.state_dict(), './results/optimizer.pth')
 
 
 if __name__=='__main__':
     # hyperparameters
-    n_epochs = 3
-    batch_size_train = 32
-    batch_size_test = 32
-    learning_rate = 0.001
-    # momentum = 0.5
+    n_epochs = 1
+    batch_size_train = 64
+    batch_size_test = 64
+    learning_rate = 0.00005
     keep_training_with_best_model = 0
 
-    # manual random seed for reproducability
+    # define model
+    net = Network()
+    # use GPU for network
+    net.to(torch.device("cuda:0"))
+    # define optimizer
+    opt = optim.Adam(net.parameters(), lr=learning_rate)
+    # define criterion
+    criterion = F.cross_entropy
+
+    # manual random seed for reproducibility
     random_seed = 1
     torch.manual_seed(random_seed)
 
     # enable ROCm/Cuda backend
     torch.backends.cudnn.enabled = True
 
-    # read in csv which organzizes data and provides labels
+    # read in csv which organizes data and provides labels
     data_set = XRaySet('chest_xray_data.csv', '../chest_xray', transform=transforms.Compose(
         [transforms.ToImage(), transforms.ToDtype(torch.float32, scale=True), transforms.RandomHorizontalFlip(p=0.5)]))
 
@@ -119,7 +130,7 @@ if __name__=='__main__':
     split1 = int(0.8 * data_length)
     split2 = int(0.2 * data_length)
 
-    if split1 + split2 < data_length:  # failsave so whole set is split
+    if split1 + split2 < data_length:  # fail save so whole set is split
         split2 = split2 + (data_length - split1 - split2)
 
     training_data, test_data = torch.utils.data.random_split(data_set, [split1, split2])
@@ -130,22 +141,11 @@ if __name__=='__main__':
     test_loader = torch.utils.data.DataLoader(dataset=test_data, batch_size=batch_size_train, shuffle=True,
                                               pin_memory=True, num_workers=8)
 
-    # define model
-    net = Network()
-    # use GPU for network
-    net.to(torch.device("cuda:0"))
-    # define optimizer
-    #opt = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
-    opt = optim.Adam(net.parameters(), lr=learning_rate)
-    # define criterion
-    criterion = F.cross_entropy
-    # criterion = F.nll_loss
-
     # counters for plotting
     train_losses = []
     train_counter = []
     test_losses = []
-    #test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
+    # test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
     test_counter = []
 
     # best losses / weights
@@ -154,8 +154,8 @@ if __name__=='__main__':
     best_opt = opt.state_dict()
 
     # load model if saved state exists
-    if os.path.exists(os.path.join(os.getcwd(),'results','checkpoint.pth')): 
-        checkpoint = torch.load(os.path.join(os.getcwd(),'results','checkpoint.pth'))
+    if os.path.exists(os.path.join(os.getcwd(), 'results', 'checkpoint.pth')):
+        checkpoint = torch.load(os.path.join(os.getcwd(), 'results', 'checkpoint.pth'))
         epoch = checkpoint['epoch'] # is this wanted?
         if keep_training_with_best_model:
             net.load_state_dict(checkpoint['best_model_state_dict'])
@@ -196,11 +196,10 @@ if __name__=='__main__':
             'test_counter': test_counter
         }, './results/checkpoint.pth') 
 
-
     # plot evolution of loss in training and testing
     plt.figure('Loss Evolution')
     plt.plot(train_counter, train_losses, color='blue')
-    plt.scatter(test_counter, test_losses, color='red')
+    plt.scatter(test_counter, test_losses, color='red', zorder=2)
     plt.legend(['Train Loss', 'Test Loss'], loc='upper right')
     plt.ylim((0, 2))
     plt.xlabel('Number of Training Examples Seen')
