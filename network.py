@@ -19,21 +19,29 @@ class Network(nn.Module):
         self.act1 = nn.ReLU()
         self.drop1 = nn.Dropout(0.3)
 
-        # 2nd convolutional layer, rectified linear unit function, max pooling of 3x3 squares for size reduction and lower translation sensitivity
+        # 2nd convolutional layer, rectified linear unit function
         self.conv2 = nn.Conv2d(16, 16, kernel_size=(3, 3), stride=1, padding=1)
         self.act2 = nn.ReLU()
-        self.pool2 = nn.MaxPool2d(kernel_size=(3, 3))
+
+        # 3rd convolutional layer, rectified linear unit function, max pooling of 3x3 squares for size reduction and lower translation sensitivity
+        self.conv3 = nn.Conv2d(16, 16, kernel_size=(3, 3), stride=1, padding=1)
+        self.act3 = nn.ReLU()
+        self.pool3 = nn.MaxPool2d(kernel_size=(3, 3))
 
         # flattening to prepare for linear layers (make 1D-array)
         self.flat = nn.Flatten()
 
         # linear layer with rectified linear unit function, dropout to reduce overfitting
-        self.fc3 = nn.Linear(664000, 480)
-        self.act3 = nn.ReLU()
-        self.drop3 = nn.Dropout(0.5)
+        self.fc4 = nn.Linear(664000, 480)
+        self.act4 = nn.ReLU()
+        self.drop4 = nn.Dropout(0.5)
+
+        # linear layer with rectified linear unit function
+        self.fc5 = nn.Linear(480, 160)
+        self.act5 = nn.ReLU()
 
         # last linear layer, 3 outputs for the 3 features "Normal", "Bacterial Pneumonia" and "Viral Pneumonia"
-        self.fc4 = nn.Linear(480, 3)
+        self.fc6 = nn.Linear(160, 3)
 
     def forward(self, x):
         # input 1x500x750, output 16x500x750
@@ -41,15 +49,19 @@ class Network(nn.Module):
         x = self.drop1(x)
         # input 16x500x750, output 16x500x750
         x = self.act2(self.conv2(x))
+        # input 16x500x750, output 16x500x750
+        x = self.act3(self.conv3(x))
         # input 16x500x750, output 16x166x259
-        x = self.pool2(x)
+        x = self.pool3(x)
         # input 16x166x187, output 664000
         x = self.flat(x)
         # input 664000, output 480
         x = self.act3(self.fc3(x))
         x = self.drop3(x)
-        # input 480, output 3
-        x = self.fc4(x)
+        # input 480, output 160
+        x = self.act4(self.fc4(x))
+        # input 160, output 3
+        x = self.fc5(x)
         return x
 
 # test loop
@@ -93,7 +105,7 @@ def train(epoch):
 
 if __name__ == '__main__':
     # hyperparameters
-    n_epochs = 1
+    n_epochs = 20
     batch_size_train = 64
     batch_size_test = 64
     learning_rate = 0.00005
@@ -192,8 +204,9 @@ if __name__ == '__main__':
             'train_counter': train_counter, 
             'test_losses': test_losses, 
             'test_counter': test_counter
-        }, './results/checkpoint.pth') 
+        }, './results/checkpoint.pth')
 
+    plt.rcParams.update({'font.size': 20})
     # plot evolution of loss in training and testing
     plt.figure('Loss Evolution')
     plt.plot(train_counter, train_losses, color='blue')
