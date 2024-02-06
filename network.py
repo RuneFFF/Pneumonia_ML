@@ -56,12 +56,12 @@ class Network(nn.Module):
         # input 16x166x187, output 664000
         x = self.flat(x)
         # input 664000, output 480
-        x = self.act3(self.fc3(x))
-        x = self.drop3(x)
-        # input 480, output 160
         x = self.act4(self.fc4(x))
+        x = self.drop4(x)
+        # input 480, output 160
+        x = self.act5(self.fc5(x))
         # input 160, output 3
-        x = self.fc5(x)
+        x = self.fc6(x)
         return x
 
 # test loop
@@ -105,7 +105,7 @@ def train(epoch):
 
 if __name__ == '__main__':
     # hyperparameters
-    n_epochs = 20
+    n_epochs = 25
     batch_size_train = 64
     batch_size_test = 64
     learning_rate = 0.00005
