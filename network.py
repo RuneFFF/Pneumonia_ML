@@ -68,7 +68,7 @@ class Network(nn.Module):
         return x
 
 def classify(output):
-    output_max = output.data.max(1,keepdim=True)[1]
+    output_max = output.data.max(1,keepdim=True)[1].item()
     if output_max == 0:
         return 'N'
     elif output_max == 1:
@@ -88,7 +88,8 @@ def do_test(epoch):
 
   with torch.no_grad():
     for data, target in test_loader:
-      all_targets.extend(classify(target))
+      for i in range(target.shape[1]):
+        all_targets.extend(classify(target[:][i]))
       data = data.to(torch.device("cuda:0"))
       output = net(data)
       target = target.type(torch.LongTensor).to(torch.device("cuda:0"))
@@ -96,7 +97,8 @@ def do_test(epoch):
       pred = output.data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
 
-      all_outputs.extend(classify(output))
+      for i in range(output.shape[1]):
+        all_outputs.extend(classify(output[:][i]))
       
 
   test_loss_mean = np.mean(test_loss)
