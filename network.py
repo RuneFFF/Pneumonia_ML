@@ -9,7 +9,10 @@ from matplotlib import pyplot as plt
 import numpy as np
 from math import inf
 import os
-from copy import deepcopy
+
+from sklearn.metrics import confusion_matrix
+import seaborn as sn 
+import pandas as pd
 
 class Network(nn.Module):
     def __init__(self):
@@ -83,6 +86,9 @@ def do_test(epoch):
   print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
     test_loss_mean, correct, len(test_loader.dataset),
     100. * correct / len(test_loader.dataset)))
+  
+  cf_matrix = confusion_matrix(output, target)
+  return cf_matrix
 
 # train loop
 def train(epoch):
@@ -110,6 +116,7 @@ if __name__ == '__main__':
     batch_size_test = 64
     learning_rate = 0.00005
     keep_training_with_best_model = True
+    train_model = False
 
     # define model
     net = Network()
@@ -179,32 +186,42 @@ if __name__ == '__main__':
         test_losses = checkpoint['test_losses']
         test_counter = checkpoint['test_counter']
 
+    if train_model: 
     # do_test(loaded_epoch)
-    if loaded_epoch == 0:
-        do_test(loaded_epoch)
-    for epoch in range(1, n_epochs + 1):
-        train(epoch+loaded_epoch)
-        do_test(epoch+loaded_epoch)
+        if loaded_epoch == 0:
+            do_test(loaded_epoch)
+        for epoch in range(1, n_epochs + 1):
+            train(epoch+loaded_epoch)
+            do_test(epoch+loaded_epoch)
 
-        # update best model parameters if loss is better than previous best
-        if test_losses[-1] < best_loss:
-            best_loss = test_losses[-1]
-            best_net = net.state_dict()
-            best_opt = opt.state_dict()
+            # update best model parameters if loss is better than previous best
+            if test_losses[-1] < best_loss:
+                best_loss = test_losses[-1]
+                best_net = net.state_dict()
+                best_opt = opt.state_dict()
 
-        # save state of current and best model and optimizer, epoch and loss
-        torch.save({
-            'epoch': epoch,
-            'current_model_state_dict': net.state_dict(),
-            'current_optimizer_state_dict': opt.state_dict(), 
-            'best_model_state_dict': best_net,
-            'best_optimizer_state_dict': best_opt, 
-            'loss': test_losses[-1], 
-            'train_losses': train_losses, 
-            'train_counter': train_counter, 
-            'test_losses': test_losses, 
-            'test_counter': test_counter
-        }, './results/checkpoint.pth')
+            # save state of current and best model and optimizer, epoch and loss
+            torch.save({
+                'epoch': epoch,
+                'current_model_state_dict': net.state_dict(),
+                'current_optimizer_state_dict': opt.state_dict(), 
+                'best_model_state_dict': best_net,
+                'best_optimizer_state_dict': best_opt, 
+                'loss': test_losses[-1], 
+                'train_losses': train_losses, 
+                'train_counter': train_counter, 
+                'test_losses': test_losses, 
+                'test_counter': test_counter
+            }, './results/checkpoint.pth')
+    else:
+        cf_matrix = do_test(loaded_epoch)
+        classes = ('Normal', 'Bacterial', 'Viral')
+        df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix, axis=1)[:, None], index = [i for i in classes],
+                     columns = [i for i in classes])
+        plt.figure(figsize = (12,7))
+        sn.heatmap(df_cm, annot=True)
+        plt.show()
+        plt.savefig('confusion.png')
 
     plt.rcParams.update({'font.size': 20})
     # plot evolution of loss in training and testing
