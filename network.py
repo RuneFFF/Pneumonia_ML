@@ -69,11 +69,11 @@ class Network(nn.Module):
 
 def classify(output):
     output_max = output.data.max(1,keepdim=True)[1]
-    if output_max == [1,0,0]:
+    if output_max == 0:
         return 'N'
-    elif output_max == [0,1,0]:
+    elif output_max == 1:
         return 'B'
-    elif output_max == [0,1,1]:
+    elif output_max == 2:
         return 'V'
     else:
         return 'unknown'
@@ -88,6 +88,7 @@ def do_test(epoch):
 
   with torch.no_grad():
     for data, target in test_loader:
+      all_targets.extend(classify(target))
       data = data.to(torch.device("cuda:0"))
       output = net(data)
       target = target.type(torch.LongTensor).to(torch.device("cuda:0"))
@@ -96,7 +97,7 @@ def do_test(epoch):
       correct += pred.eq(target.data.view_as(pred)).sum()
 
       all_outputs.extend(classify(output))
-      all_targets.extend(classify(target))
+      
 
   test_loss_mean = np.mean(test_loss)
   test_losses.append(test_loss_mean)
@@ -105,7 +106,7 @@ def do_test(epoch):
     test_loss_mean, correct, len(test_loader.dataset),
     100. * correct / len(test_loader.dataset)))
   
-  cf_matrix = confusion_matrix(all_outputs, all_targets)
+  cf_matrix = confusion_matrix(all_outputs, all_targets,labels=['N','B','V'])
   return cf_matrix
 
 # train loop
