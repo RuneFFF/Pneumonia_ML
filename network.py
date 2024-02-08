@@ -67,17 +67,6 @@ class Network(nn.Module):
         x = self.fc6(x)
         return x
 
-def classify(output):
-    output_max = output.data.max(1,keepdim=True)[1].item()
-    if output_max == 0:
-        return 'N'
-    elif output_max == 1:
-        return 'B'
-    elif output_max == 2:
-        return 'V'
-    else:
-        return 'unknown'
-    
 # test loop
 def do_test(epoch):
   net.eval()
@@ -88,18 +77,14 @@ def do_test(epoch):
 
   with torch.no_grad():
     for data, target in test_loader:
-      for i in range(target.shape[1]):
-        all_targets.extend(classify(target[:][i]))
+      all_targets.extend(target[:].cpu())
       data = data.to(torch.device("cuda:0"))
       output = net(data)
       target = target.type(torch.LongTensor).to(torch.device("cuda:0"))
       test_loss.append(criterion(output, target).item())
       pred = output.data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
-
-      for i in range(output.shape[1]):
-        all_outputs.extend(classify(output[:][i]))
-      
+      all_outputs.extend(pred.T[0].cpu())
 
   test_loss_mean = np.mean(test_loss)
   test_losses.append(test_loss_mean)
@@ -108,7 +93,7 @@ def do_test(epoch):
     test_loss_mean, correct, len(test_loader.dataset),
     100. * correct / len(test_loader.dataset)))
   
-  cf_matrix = confusion_matrix(all_outputs, all_targets,labels=['N','B','V'])
+  cf_matrix = confusion_matrix(all_outputs, all_targets, labels=[0, 1, 2])
   return cf_matrix
 
 # train loop
@@ -241,7 +226,6 @@ if __name__ == '__main__':
                      columns = [i for i in classes])
         plt.figure(figsize = (12,7))
         sn.heatmap(df_cm, annot=True)
-        plt.show()
         plt.savefig('confusion.png')
 
     plt.rcParams.update({'font.size': 20})
