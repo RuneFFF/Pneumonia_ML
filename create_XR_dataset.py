@@ -17,8 +17,8 @@ class XRaySet(torch.utils.data.Dataset):
     def __getitem__(self, index):
         img_data = self.img_labels.iloc[index]
         img_path = os.path.join(self.root_dir, self.img_labels.iloc[index, 1] + '.jpeg')
-        img = io.imread(img_path)
-        #img = tvio.read_image(img_path, tvio.ImageReadMode.GRAY)
+        #img = io.imread(img_path)
+        img = tvio.read_image(img_path, tvio.ImageReadMode.GRAY)
 
         if self.transform:  #transforms image to torch tensor
             img = self.transform(img)
@@ -34,5 +34,6 @@ class XRaySet(torch.utils.data.Dataset):
         label = torch.tensor(label, dtype=torch.float32)
         return img, label
 
-X = XRaySet('chest_xray_data.csv', '../chest_xray')
-print(X.__getitem__(3))
+if __name__=='__main__':
+    X = XRaySet('chest_xray_data.csv', '../chest_xray')
+    print(X.__getitem__(3))
