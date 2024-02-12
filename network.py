@@ -9,10 +9,12 @@ from matplotlib import pyplot as plt
 import numpy as np
 from math import inf
 import os
+os.environ["PATH"] += os.pathsep + 'C:/Program Files/Graphviz/bin/'  # Adjust the path to your Graphviz installation directory
 
 from sklearn.metrics import confusion_matrix
-import seaborn as sn 
-import pandas as pd
+from seaborn import heatmap
+from pandas import DataFrame
+from torchview import draw_graph
 
 class Network(nn.Module):
     def __init__(self):
@@ -78,9 +80,12 @@ def do_test(epoch):
   with torch.no_grad():
     for data, target in test_loader:
       all_targets.extend(target[:].cpu())
-      data = data.to(torch.device("cuda:0"))
+      if torch.cuda.is_available():
+        data = data.to(torch.device("cuda:0"))
+        target = target.type(torch.LongTensor).to(torch.device("cuda:0"))
+      else: 
+        target = target.type(torch.LongTensor)
       output = net(data)
-      target = target.type(torch.LongTensor).to(torch.device("cuda:0"))
       test_loss.append(criterion(output, target).item())
       pred = output.data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
@@ -93,7 +98,7 @@ def do_test(epoch):
     test_loss_mean, correct, len(test_loader.dataset),
     100. * correct / len(test_loader.dataset)))
   
-  cf_matrix = confusion_matrix(all_outputs, all_targets, labels=[0, 1, 2])
+  cf_matrix = confusion_matrix(all_targets, all_outputs, labels=[0, 1, 2])
   return cf_matrix
 
 # train loop
@@ -101,10 +106,11 @@ def train(epoch):
     net.train()
     train_loss_epoch = []
     for batch_idx, (data, target) in enumerate(train_loader):
-        data = data.to(torch.device("cuda:0"))
+        if torch.cuda.is_available():
+            data = data.to(torch.device("cuda:0"))
+            target = target.type(torch.LongTensor).to(torch.device("cuda:0"))  # cast target to tensor of type Long for Loss function
         opt.zero_grad()
         output = net(data)
-        target = target.type(torch.LongTensor).to(torch.device("cuda:0"))  # cast target to tensor of type Long for Loss function
         loss = criterion(output, target)
         loss.backward()
         opt.step()
@@ -126,8 +132,11 @@ if __name__ == '__main__':
 
     # define model
     net = Network()
-    # use GPU for network
-    net.to(torch.device("cuda:0"))
+    if torch.cuda.is_available():
+        # use GPU for network
+        net.to(torch.device("cuda:0"))
+        # enable ROCm/Cuda backend
+        torch.backends.cudnn.enabled = True
     # define optimizer
     opt = optim.Adam(net.parameters(), lr=learning_rate)
     # define criterion
@@ -137,8 +146,6 @@ if __name__ == '__main__':
     random_seed = 1
     torch.manual_seed(random_seed)
 
-    # enable ROCm/Cuda backend
-    torch.backends.cudnn.enabled = True
 
     # read in csv which organizes data and provides labels
     data_set = XRaySet('chest_xray_data.csv', '../chest_xray', transform=transforms.Compose(
@@ -174,7 +181,10 @@ if __name__ == '__main__':
     # load model if saved state exists
     loaded_epoch = 0
     if os.path.exists(os.path.join(os.getcwd(), 'results', 'checkpoint.pth')):
-        checkpoint = torch.load(os.path.join(os.getcwd(), 'results', 'checkpoint.pth'))
+        if torch.cuda.is_available():
+            checkpoint = torch.load(os.path.join(os.getcwd(), 'results', 'checkpoint.pth'))
+        else:
+            checkpoint = torch.load(os.path.join(os.getcwd(), 'results', 'checkpoint.pth'),map_location=torch.device('cpu'))
         loaded_epoch = checkpoint['epoch']
         # if specified, use best available model
         if keep_training_with_best_model:
@@ -220,13 +230,18 @@ if __name__ == '__main__':
                 'test_counter': test_counter
             }, './results/checkpoint.pth')
     else:
+        # feed test data and create confusion matrix
         cf_matrix = do_test(loaded_epoch)
         classes = ('Normal', 'Bacterial', 'Viral')
-        df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix, axis=1)[:, None], index = [i for i in classes],
+        df_cm = DataFrame(cf_matrix / np.sum(cf_matrix, axis=1)[:, None], index = [i for i in classes],
                      columns = [i for i in classes])
         plt.figure(figsize = (12,7))
-        sn.heatmap(df_cm, annot=True)
-        plt.savefig('confusion.png')
+        heatmap(df_cm, annot=True)
+        plt.savefig('confusion.svg')
+
+        # plot network visualization
+        model_graph = draw_graph(net,  input_size=(64,1,750,500), expand_nested=True)
+        model_graph.visual_graph.render(format='svg')
 
     plt.rcParams.update({'font.size': 20})
     # plot evolution of loss in training and testing
@@ -242,11 +257,15 @@ if __name__ == '__main__':
     # example data for plot with example images and assigned/true labels
     examples = enumerate(test_loader)
     batch_idx, (example_data, example_targets) = next(examples)
-    example_data.to(torch.device("cuda:0"))
-    example_targets.to(torch.device("cuda:0"))
+    if torch.cuda.is_available():
+        example_data.to(torch.device("cuda:0"))
+        example_targets.to(torch.device("cuda:0"))
 
     with torch.no_grad():
-        output = net(example_data.to(torch.device("cuda:0")))
+        if torch.cuda.is_available():
+            output = net(example_data.to(torch.device("cuda:0")))
+        else:
+            output = net(example_data)
 
     # plot examples
     plt.figure('Examples')
@@ -270,3 +289,5 @@ if __name__ == '__main__':
             label = 'Viral'
         plt.title("Prediction: "+pred+',\n Label: '+label)
     plt.show()
+
+    pass
